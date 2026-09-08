@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 ./node_modules
+
 # Environment variables
 .env
 
@@ -9,19 +10,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build directories (if using TypeScript, React, etc.)
+# Build directories
 dist/
 build/
+frontend/dist/
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-*.json
-*.png
-*.xlsx
-*.pdf
-*.jpg
-*.jpeg
-*.csv
-*.webp
+# Dynamic Sessions and Temp Data
+sessions/
+screenshots/
+login_otp_status.json
+accounts_login_status.json
+
+# Exclude sensitive CSV credentials if needed (keep sample/template available)
+# accounts.csv
