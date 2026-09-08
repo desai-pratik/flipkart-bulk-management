@@ -792,7 +792,6 @@ async function ensurePriceAndStockFilled(page, username, defaults, baseSkuName) 
         await selectFormDropdown(page, '^Country Of Origin', defaults.countryOfOrigin || 'India');
         await fillFormField(page, '^Manufacturer Details', defaults.manufacturerDetails || 'Bazar Collections, Yogi Chowk, Surat, Gujarat - 395010');
         await fillFormField(page, '^Packer Details', defaults.packerDetails || 'Bazar Collections, Yogi Chowk, Surat, Gujarat - 395010');
-        await fillFormField(page, '^Importer Details', defaults.importerDetails || 'Not Required');
 
         await page.waitForTimeout(1000);
 
@@ -911,7 +910,6 @@ async function validateAndFixAllTabs(page, username, defaults, baseSkuName) {
             await selectFormDropdown(page, '^Country Of Origin', defaults.countryOfOrigin || 'India');
             await fillFormField(page, '^Manufacturer Details', defaults.manufacturerDetails || 'Bazar Collections, Yogi Chowk, Surat, Gujarat - 395010');
             await fillFormField(page, '^Packer Details', defaults.packerDetails || 'Bazar Collections, Yogi Chowk, Surat, Gujarat - 395010');
-            await fillFormField(page, '^Importer Details', defaults.importerDetails || 'Not Required');
             await page.waitForTimeout(1000);
         }
 

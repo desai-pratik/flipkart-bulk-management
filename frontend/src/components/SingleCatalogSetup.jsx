@@ -65,9 +65,6 @@ function SingleCatalogSetup({ socket }) {
     packerName: 'Bazar Collections',
     packerAddress: 'Yogi Chowk, Surat, Gujarat - 395010',
     packerPincode: '395010',
-    importerName: 'Not Required',
-    importerAddress: 'Not Required',
-    importerPincode: 'Not Required',
 
     description: 'Exquisite Gold Plated Traditional Jewellery Set for Women. Features intricate craftsmanship, adorned with lustrous beads and artificial stones. Perfect for weddings, festive occasions, and traditional celebrations.',
     searchKeywords: 'jewellery set, necklace set, traditional gold plated jewelry, bridal jewellery set, women necklace set'
@@ -988,18 +985,6 @@ function SingleCatalogSetup({ socket }) {
                 onChange={handleChange}
                 className="input-field"
                 placeholder="Full Packer Details"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Importer Details</label>
-              <input
-                type="text"
-                name="importerDetails"
-                value={formData.importerDetails || 'Not Required'}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Importer Details or 'Not Required'"
               />
             </div>
 
