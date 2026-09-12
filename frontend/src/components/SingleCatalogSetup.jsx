@@ -34,7 +34,7 @@ function SingleCatalogSetup({ socket }) {
     hsnCode: '711790',
     gstRate: '3',
     listingStatus: 'ACTIVE',
-    procurementType: 'IN_STOCK',
+    procurementType: 'instock',
     procurementSLA: '1',
 
     packageWeight: '0.15',
@@ -51,7 +51,8 @@ function SingleCatalogSetup({ socket }) {
     trend: 'Handcrafted',
     occasion: 'Festive & Party',
     color: 'Gold',
-    netQuantity: 'Pack of 1',
+    packOf: '1',
+    netQuantity: '1',
     includedComponents: '1 Necklace, 1 Pair of Earrings',
     genericName: 'Jewellery Set',
     idealFor: 'Women',
@@ -136,7 +137,7 @@ function SingleCatalogSetup({ socket }) {
     try {
       await fetch(`${BACKEND_URL}/api/catalog-notifications`, { method: 'DELETE' });
       setCatalogNotifications([]);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -769,11 +770,11 @@ function SingleCatalogSetup({ socket }) {
                 <label>Procurement Type</label>
                 <select
                   name="procurementType"
-                  value={formData.procurementType || 'In Stock'}
+                  value={formData.procurementType || 'instock'}
                   onChange={handleChange}
                   className="input-field"
                 >
-                  <option value="In Stock">In Stock</option>
+                  <option value="instock">instock</option>
                   <option value="Express">Express</option>
                   <option value="Made to Order">Made to Order</option>
                   <option value="Domestic">Domestic</option>
@@ -1264,18 +1265,20 @@ function SingleCatalogSetup({ socket }) {
             </div>
 
             <div className="form-group">
-              <label>Pack of <span style={{ color: 'var(--danger)' }}>*</span> (Multi-select)</label>
-              <input
-                type="text"
+              <label>Pack of <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <select
                 name="packOf"
                 value={formData.packOf || '1'}
                 onChange={handleChange}
                 className="input-field"
-                placeholder="e.g. 1, 2"
-              />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
-                Options: 1, 2, 3, 4, 5, Pack of 1
-              </span>
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
             </div>
 
           </div>

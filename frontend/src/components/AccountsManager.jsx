@@ -58,9 +58,21 @@ function AccountsManager({ onTrigger, socket, statuses }) {
     }
   };
 
-  const handleLoginVerify = (username) => {
-    if (!username) return;
-    onTrigger('flipkart_login_helper.js', { account: username });
+  const handleLoginVerify = async (accountObj) => {
+    if (!accountObj || !accountObj.username) {
+      alert("Please enter a Seller Portal Email / Mobile first.");
+      return;
+    }
+    try {
+      await fetch('http://localhost:3002/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts: accounts.filter(a => a.username && a.password) })
+      });
+    } catch (e) {
+      console.warn("Auto-save before login verification failed:", e);
+    }
+    onTrigger('flipkart_login_helper.js', { account: accountObj.username });
   };
 
 
@@ -127,7 +139,7 @@ function AccountsManager({ onTrigger, socket, statuses }) {
               <th>Seller Company Name</th>
               <th>Brand Name</th>
               <th>Password</th>
-              <th style={{ width: '100px', textAlign: 'center' }}>Actions</th>
+              <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -142,6 +154,8 @@ function AccountsManager({ onTrigger, socket, statuses }) {
               })
               .map((acc) => {
                 const idx = acc.originalIndex;
+                const accountStatus = statuses?.[acc.username]?.status;
+                const isChecking = accountStatus === 'Checking...';
 
                 return (
                   <tr key={idx}>
@@ -190,15 +204,65 @@ function AccountsManager({ onTrigger, socket, statuses }) {
                         placeholder="Password"
                       />
                     </td>
-                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                      <button
-                        className="btn btn-danger"
-                        style={{ padding: '0.45rem', display: 'inline-flex' }}
-                        onClick={() => removeAccount(idx)}
-                        title="Delete Account"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center' }}>
+                        <button
+                          className="btn"
+                          style={{
+                            padding: '0.45rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            background: isChecking
+                              ? 'rgba(40, 116, 240, 0.25)'
+                              : accountStatus === 'Logged In'
+                              ? 'rgba(16, 185, 129, 0.15)'
+                              : accountStatus === 'Logged Out'
+                              ? 'rgba(244, 63, 94, 0.15)'
+                              : accountStatus === 'OTP Required'
+                              ? 'rgba(255, 159, 0, 0.15)'
+                              : 'rgba(40, 116, 240, 0.12)',
+                            color: isChecking
+                              ? 'var(--accent-yellow)'
+                              : accountStatus === 'Logged In'
+                              ? 'var(--success)'
+                              : accountStatus === 'Logged Out'
+                              ? 'var(--danger)'
+                              : accountStatus === 'OTP Required'
+                              ? 'var(--accent-orange)'
+                              : 'var(--primary)',
+                            border: `1px solid ${
+                              isChecking
+                                ? 'rgba(255, 225, 27, 0.4)'
+                                : accountStatus === 'Logged In'
+                                ? 'rgba(16, 185, 129, 0.3)'
+                                : accountStatus === 'Logged Out'
+                                ? 'rgba(244, 63, 94, 0.3)'
+                                : 'rgba(40, 116, 240, 0.25)'
+                            }`,
+                            cursor: isChecking ? 'wait' : 'pointer',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                          }}
+                          onClick={() => handleLoginVerify(acc)}
+                          disabled={isChecking}
+                          title={
+                            isChecking
+                              ? `Running login bot for ${acc.username || 'this account'}...`
+                              : `Run Login Bot for ${acc.username || 'this account'}${accountStatus ? ` (${accountStatus})` : ''}`
+                          }
+                        >
+                          <RefreshCw size={16} className={isChecking ? 'spin' : ''} />
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          style={{ padding: '0.45rem', display: 'inline-flex', borderRadius: '8px' }}
+                          onClick={() => removeAccount(idx)}
+                          title="Delete Account"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

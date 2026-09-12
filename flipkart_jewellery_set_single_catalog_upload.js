@@ -774,7 +774,7 @@ async function ensurePriceAndStockFilled(page, username, defaults, baseSkuName) 
         }
         // 4. Fulfillment & Procurement & Stock
         await selectFormDropdown(page, '^Fullfilment by', defaults.fulfilmentBy || 'Seller');
-        await selectFormDropdown(page, '^Procurement type', defaults.procurementType || 'In Stock');
+        await selectFormDropdown(page, '^Procurement type', defaults.procurementType || 'instock');
         await fillFormField(page, '^Procurement SLA', defaults.procurementSLA || '1');
         await fillFormField(page, '^Stock', defaults.stock || defaults.inventory || '1000');
         // 5. Shipping Provider
@@ -848,15 +848,15 @@ async function ensureProductDescriptionFilled(page, username, defaults, baseSkuN
         await fillFormField(page, '^Brand Color', brandColorVal);
         // 17. Silver Weight
         await fillFormField(page, '^Silver Weight', defaults.silverWeight || '0');
-        // 18. Pack of (Both single dropdown and multi-select fallbacks)
-        const packVal = defaults.packOf ? (Array.isArray(defaults.packOf) ? defaults.packOf[0] : defaults.packOf) : '1';
+        // 18. Pack of (Single dropdown)
+        const rawPack = defaults.packOf || defaults.packOf || '1';
+        const packVal = String(Array.isArray(rawPack) ? rawPack[0] : rawPack).trim();
         await selectFormDropdown(page, '^Pack of', packVal);
-        await selectMultiSelectDropdown(page, '^Pack of', [packVal]);
 
         // Click any suggested value apply button
         const applyBtn = page.locator('button, a, span').filter({ hasText: /^Apply$/i }).filter({ visible: true }).first();
         if (await applyBtn.isVisible({ timeout: 800 }).catch(() => false)) {
-            await applyBtn.click({ force: true }).catch(() => {});
+            await applyBtn.click({ force: true }).catch(() => { });
         }
 
         await page.waitForTimeout(1000);
@@ -886,7 +886,7 @@ async function validateAndFixAllTabs(page, username, defaults, baseSkuName) {
         if (hasPriceError) {
             console.log(`  > [Attempt ${attempt}] Resolving errors on 'Price, Stock and Shipping Information' tab...`);
             const pTabLoc = page.locator('div, span, button, a, li').filter({ hasText: /^Price, Stock/i }).first();
-            await pTabLoc.click({ force: true }).catch(() => {});
+            await pTabLoc.click({ force: true }).catch(() => { });
             await page.waitForTimeout(1500);
 
             // Re-fill all Price & Stock fields
@@ -896,7 +896,7 @@ async function validateAndFixAllTabs(page, username, defaults, baseSkuName) {
             await fillFormField(page, '^Your selling price', defaults.sellingPrice || '199');
             await selectFormDropdown(page, 'Minimum Order Quantity', defaults.minOQ || '1');
             await selectFormDropdown(page, '^Fullfilment by', defaults.fulfilmentBy || 'Seller');
-            await selectFormDropdown(page, '^Procurement type', defaults.procurementType || 'In Stock');
+            await selectFormDropdown(page, '^Procurement type', defaults.procurementType || 'instock');
             await fillFormField(page, '^Procurement SLA', defaults.procurementSLA || '1');
             await fillFormField(page, '^Stock', defaults.stock || defaults.inventory || '1000');
             await selectFormDropdown(page, '^Shipping provider', defaults.shippingProvider || 'Flipkart');
@@ -923,7 +923,7 @@ async function validateAndFixAllTabs(page, username, defaults, baseSkuName) {
         if (hasProductDescError) {
             console.log(`  > [Attempt ${attempt}] Resolving errors on 'Product Description' tab...`);
             const dTabLoc = page.locator('div, span, button, a, li').filter({ hasText: /^Product Description/i }).first();
-            await dTabLoc.click({ force: true }).catch(() => {});
+            await dTabLoc.click({ force: true }).catch(() => { });
             await page.waitForTimeout(1500);
 
             // Re-fill all Product Description fields
@@ -945,13 +945,14 @@ async function validateAndFixAllTabs(page, username, defaults, baseSkuName) {
             await fillFormField(page, '^Diamond Weight', defaults.diamondWeight || '0');
             const brandColorVal = defaults.brandColor || defaults.color || 'Gold';
             await fillFormField(page, '^Brand Color', brandColorVal);
-            await fillFormField(page, '^Silver Weight', defaults.silverWeight || '0');
-            await selectMultiSelectDropdown(page, '^Pack of', defaults.packOf || ['1']);
+            const rawPack = defaults.packOf || defaults.packOf || '1';
+            const packVal = String(Array.isArray(rawPack) ? rawPack[0] : rawPack).trim();
+            await selectFormDropdown(page, '^Pack of', packVal);
 
             // Click any suggested value apply button
             const applyBtn = page.locator('button, a, span').filter({ hasText: /^Apply$/i }).filter({ visible: true }).first();
             if (await applyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await applyBtn.click({ force: true }).catch(() => {});
+                await applyBtn.click({ force: true }).catch(() => { });
             }
             await page.waitForTimeout(1000);
         }
@@ -982,7 +983,7 @@ async function clickSendToQC(page) {
                 console.log(`  > Clicked 'Send to QC' via Playwright force click.`);
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 
     // Method 2: DOM traversal & dispatch
     if (!clicked) {
@@ -1016,10 +1017,10 @@ async function clickSendToQC(page) {
 
         if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             console.log("  > Found confirmation dialog! Clicking confirmation button...");
-            await confirmBtn.click().catch(() => {});
+            await confirmBtn.click().catch(() => { });
             await page.waitForTimeout(2000);
         }
-    } catch (e) {}
+    } catch (e) { }
 
     return clicked;
 }
@@ -1132,6 +1133,9 @@ async function selectFormDropdown(page, labelRegex, targetValue) {
     console.log(`  > Selecting dropdown for "${labelRegex}" -> "${strVal}"...`);
 
     try {
+        let triggerBox = null;
+
+        // 1. Locate the dropdown trigger element next to label
         const triggerClicked = await page.evaluate(({ lblStr }) => {
             const regex = new RegExp(lblStr, 'i');
             const allElements = Array.from(document.querySelectorAll('label, div, span, p, h4'));
@@ -1154,10 +1158,10 @@ async function selectFormDropdown(page, labelRegex, targetValue) {
                     }
                 }
             }
-            if (!targetLabel) return false;
+            if (!targetLabel) return null;
 
             const lRect = targetLabel.getBoundingClientRect();
-            const triggers = Array.from(document.querySelectorAll('div[class*="select" i], [role="button"], select, div[class*="Dropdown" i], [role="combobox"]'));
+            const triggers = Array.from(document.querySelectorAll('div[class*="select" i], [role="button"], select, div[class*="Dropdown" i], [role="combobox"], div[class*="Trigger" i]'));
             let trigger = null;
             let minDistance = 999999;
 
@@ -1166,7 +1170,7 @@ async function selectFormDropdown(page, labelRegex, targetValue) {
                 if (tRect.width === 0 || tRect.height === 0 || tRect.bottom < 0) continue;
 
                 const yDiff = Math.abs(tRect.top - lRect.top);
-                if (yDiff < 35 && tRect.left >= lRect.left - 20) {
+                if (yDiff < 40 && tRect.left >= lRect.left - 20) {
                     const dist = Math.hypot(tRect.left - lRect.right, tRect.top - lRect.top);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -1178,57 +1182,192 @@ async function selectFormDropdown(page, labelRegex, targetValue) {
             if (trigger) {
                 trigger.scrollIntoView({ block: 'center' });
                 trigger.click();
-                ['mousedown', 'mouseup', 'click'].forEach(evt => trigger.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true })));
-                return true;
+                ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evt =>
+                    trigger.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }))
+                );
+                const r = trigger.getBoundingClientRect();
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
             }
-            return false;
+            return null;
         }, { lblStr: labelRegex });
 
         if (triggerClicked) {
-            await page.waitForTimeout(500);
-
-            const searchInput = page.locator('.dropdown-menu input, [role="listbox"] input, div[class*="menu" i] input, div[class*="popover" i] input').first();
-            if (await searchInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await searchInput.fill(strVal);
-                await page.waitForTimeout(300);
-            }
-
-            const optionClicked = await page.evaluate(({ val }) => {
-                const search = val.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const options = Array.from(document.querySelectorAll('li, div[role="option"], [class*="option" i], [class*="item" i], div, span'));
-                
-                for (const opt of options) {
-                    const t = (opt.innerText || opt.textContent || '').trim();
-                    const cleanT = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    if (cleanT === search && t.length < 40) {
-                        opt.scrollIntoView();
-                        opt.click();
-                        ['mousedown', 'mouseup', 'click'].forEach(evt => opt.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true })));
-                        return true;
-                    }
-                }
-
-                for (const opt of options) {
-                    const t = (opt.innerText || opt.textContent || '').trim();
-                    const cleanT = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    if ((cleanT.includes(search) || search.includes(cleanT)) && cleanT.length > 0 && t.length < 40) {
-                        opt.scrollIntoView();
-                        opt.click();
-                        ['mousedown', 'mouseup', 'click'].forEach(evt => opt.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true })));
-                        return true;
-                    }
-                }
-                return false;
-            }, { val: strVal });
-
-            if (!optionClicked) {
-                const optLoc = page.locator(`text=/^${strVal}$/i`).or(page.locator(`text=${strVal}`)).filter({ visible: true }).first();
-                if (await optLoc.isVisible({ timeout: 1500 }).catch(() => false)) {
-                    await optLoc.click({ force: true });
+            await page.mouse.click(triggerClicked.x, triggerClicked.y).catch(() => { });
+        } else {
+            // Fallback Playwright locator
+            const labelLoc = page.locator('label, div, span, p').filter({ hasText: new RegExp(labelRegex, 'i') }).filter({ visible: true }).first();
+            if (await labelLoc.isVisible({ timeout: 1500 }).catch(() => false)) {
+                const box = await labelLoc.boundingBox();
+                if (box) {
+                    await page.mouse.click(box.x + box.width + 120, box.y + box.height / 2);
                 }
             }
         }
+
+        await page.waitForTimeout(500);
+
+        // 2. Locate the dropdown search input (#checkmarkgroup-search or input[placeholder="Select"])
+        const searchInput = page.locator('input#checkmarkgroup-search, input[placeholder="Select"], input[aria-label="Search"], input[class*="SearchInput" i], input[placeholder*="search" i]')
+            .filter({ visible: true })
+            .last();
+
+        if (await searchInput.isVisible({ timeout: 1200 }).catch(() => false)) {
+            console.log(`    - Found dropdown search input, filtering for "${strVal}"...`);
+            await searchInput.click({ force: true });
+            await page.waitForTimeout(100);
+            await searchInput.fill('');
+            await page.keyboard.press('Control+A');
+            await page.keyboard.press('Backspace');
+            await searchInput.pressSequentially(strVal, { delay: 40 });
+            await page.waitForTimeout(400);
+        } else {
+            // DOM evaluate search fallback
+            await page.evaluate((val) => {
+                const inputs = Array.from(document.querySelectorAll('input#checkmarkgroup-search, input[placeholder="Select"], input[aria-label="Search"], input[class*="SearchInput" i], input[placeholder*="search" i]'));
+                const visibleInp = inputs.find(i => {
+                    const r = i.getBoundingClientRect();
+                    return r.width > 0 && r.height > 0 && r.top > 0;
+                });
+                if (visibleInp) {
+                    visibleInp.focus();
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+                    if (nativeSetter) nativeSetter.call(visibleInp, val);
+                    else visibleInp.value = val;
+                    ['input', 'change'].forEach(e => visibleInp.dispatchEvent(new Event(e, { bubbles: true })));
+                }
+            }, strVal);
+            await page.waitForTimeout(400);
+        }
+
+        // 3. Find and click the EXACT matching option in the dropdown list
+        let optionClicked = false;
+
+        // Method A: DOM evaluate specifically finding exact text match inside open dropdown
+        const domClickResult = await page.evaluate(({ val }) => {
+            const target = val.trim().toLowerCase();
+
+            // Locate active search input or dropdown container
+            const searchInputs = Array.from(document.querySelectorAll('input#checkmarkgroup-search, input[placeholder="Select"], input[aria-label="Search"], input[class*="SearchInput" i], input[placeholder*="search" i], input[type="text"]'));
+            const visibleSearch = searchInputs.reverse().find(i => {
+                const r = i.getBoundingClientRect();
+                return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight;
+            });
+
+            let popupContainer = null;
+            if (visibleSearch) {
+                let curr = visibleSearch.parentElement;
+                while (curr && curr !== document.body) {
+                    const style = window.getComputedStyle(curr);
+                    const isPopup = /popover|popup|dropdown|menu|portal|modal|layer|floating|overlay|select/i.test(curr.className || '') ||
+                        style.position === 'absolute' || style.position === 'fixed' || parseInt(style.zIndex, 10) > 10;
+                    if (isPopup && curr.getBoundingClientRect().height > 80) {
+                        popupContainer = curr;
+                        break;
+                    }
+                    curr = curr.parentElement;
+                }
+                if (!popupContainer) popupContainer = visibleSearch.parentElement?.parentElement?.parentElement || document.body;
+            } else {
+                popupContainer = document.body;
+            }
+
+            const allElements = Array.from(popupContainer.querySelectorAll('div, li, span, label, p, a, [role="option"], [role="radio"], [role="button"]'));
+
+            // Look for STRICT EXACT match
+            const exactCandidates = [];
+            for (const el of allElements) {
+                if (el === visibleSearch) continue;
+                if (el.querySelector('input:not([type="radio"]):not([type="checkbox"])')) continue;
+
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0 || r.top < 0 || r.bottom > window.innerHeight + 100) continue;
+
+                if (visibleSearch) {
+                    const sr = visibleSearch.getBoundingClientRect();
+                    if (r.bottom <= sr.top) continue;
+                }
+
+                const text = (el.innerText || el.textContent || '').trim();
+                if (!text) continue;
+
+                // Exact match: must equal target exactly (ignoring case & extra whitespace)
+                if (text.toLowerCase() === target) {
+                    exactCandidates.push({
+                        el,
+                        r,
+                        childCount: el.children.length,
+                        area: r.width * r.height
+                    });
+                }
+            }
+
+            if (exactCandidates.length > 0) {
+                // Prefer deepest element (leaf node) with smallest area
+                exactCandidates.sort((a, b) => a.childCount - b.childCount || a.area - b.area);
+                const targetEl = exactCandidates[0].el;
+
+                targetEl.scrollIntoView({ block: 'nearest' });
+                const r = targetEl.getBoundingClientRect();
+
+                ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evt =>
+                    targetEl.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }))
+                );
+                targetEl.click();
+
+                return {
+                    success: true,
+                    x: r.left + r.width / 2,
+                    y: r.top + r.height / 2,
+                    matchedText: targetEl.innerText || targetEl.textContent
+                };
+            }
+
+            return { success: false };
+        }, { val: strVal });
+
+        if (domClickResult && domClickResult.success) {
+            console.log(`    - Clicked exact option "${strVal}" via DOM event at (${Math.round(domClickResult.x)}, ${Math.round(domClickResult.y)})`);
+            await page.mouse.click(domClickResult.x, domClickResult.y).catch(() => { });
+            optionClicked = true;
+        }
+
+        // Method B: Playwright locator fallback strictly matching exact text
+        if (!optionClicked) {
+            try {
+                const escaped = strVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const exactRegex = new RegExp(`^\\s*${escaped}\\s*$`, 'i');
+
+                const searchBox = await searchInput.boundingBox().catch(() => null);
+                const optLocator = page.locator('div, li, span, label, p, [role="option"]')
+                    .filter({ hasText: exactRegex })
+                    .filter({ visible: true });
+
+                const count = await optLocator.count();
+                for (let idx = 0; idx < count; idx++) {
+                    const item = optLocator.nth(idx);
+                    const box = await item.boundingBox();
+                    if (!box) continue;
+
+                    if (searchBox && (box.y < searchBox.y - 10 || Math.abs(box.x - searchBox.x) > 300)) {
+                        continue;
+                    }
+
+                    console.log(`    - Clicking exact option "${strVal}" via Playwright locator at (${Math.round(box.x + box.width / 2)}, ${Math.round(box.y + box.height / 2)})...`);
+                    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+                    optionClicked = true;
+                    break;
+                }
+            } catch (e) { }
+        }
+
+        // Method C: Click Apply button if present
+        const applyBtn = page.locator('button, [role="button"], a').filter({ hasText: /^Apply$/i }).filter({ visible: true }).first();
+        if (await applyBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+            await applyBtn.click({ force: true }).catch(() => { });
+        }
+
         await page.waitForTimeout(300);
+        console.log(`  > [Confirmed] Dropdown "${labelRegex}" set to "${strVal}".`);
         return true;
     } catch (e) {
         console.error(`Error selecting dropdown ${labelRegex}:`, e.message);
@@ -1241,7 +1380,10 @@ async function selectMultiSelectDropdown(page, labelRegex, values) {
     const valList = Array.isArray(values) ? values : String(values).split(',').map(s => s.trim()).filter(Boolean);
     if (valList.length === 0) return false;
 
+    console.log(`  > Selecting multi-select dropdown for "${labelRegex}" -> [${valList.join(', ')}]...`);
+
     try {
+        // 1. Locate and click multi-select trigger
         const clickedTrigger = await page.evaluate(({ lblStr }) => {
             const regex = new RegExp(lblStr, 'i');
             const allElements = Array.from(document.querySelectorAll('label, div, span, p, h4'));
@@ -1264,10 +1406,10 @@ async function selectMultiSelectDropdown(page, labelRegex, values) {
                     }
                 }
             }
-            if (!targetLabel) return false;
+            if (!targetLabel) return null;
 
             const lRect = targetLabel.getBoundingClientRect();
-            const triggers = Array.from(document.querySelectorAll('div[class*="select" i], [role="button"], select, div[class*="Dropdown" i], [role="combobox"]'));
+            const triggers = Array.from(document.querySelectorAll('div[class*="select" i], [role="button"], select, div[class*="Dropdown" i], [role="combobox"], div[class*="Trigger" i]'));
             let trigger = null;
             let minDistance = 999999;
 
@@ -1276,7 +1418,7 @@ async function selectMultiSelectDropdown(page, labelRegex, values) {
                 if (tRect.width === 0 || tRect.height === 0 || tRect.bottom < 0) continue;
 
                 const yDiff = Math.abs(tRect.top - lRect.top);
-                if (yDiff < 35 && tRect.left >= lRect.left - 20) {
+                if (yDiff < 40 && tRect.left >= lRect.left - 20) {
                     const dist = Math.hypot(tRect.left - lRect.right, tRect.top - lRect.top);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -1288,48 +1430,131 @@ async function selectMultiSelectDropdown(page, labelRegex, values) {
             if (trigger) {
                 trigger.scrollIntoView({ block: 'center' });
                 trigger.click();
-                ['mousedown', 'mouseup', 'click'].forEach(evt => trigger.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true })));
-                return true;
+                ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evt =>
+                    trigger.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }))
+                );
+                const r = trigger.getBoundingClientRect();
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
             }
-            return false;
+            return null;
         }, { lblStr: labelRegex });
 
         if (clickedTrigger) {
-            await page.waitForTimeout(500);
-
-            for (const val of valList) {
-                const searchInput = page.locator('.dropdown-menu input, [role="listbox"] input, div[class*="menu" i] input').first();
-                if (await searchInput.isVisible({ timeout: 500 }).catch(() => false)) {
-                    await searchInput.fill(val);
-                    await page.waitForTimeout(200);
+            await page.mouse.click(clickedTrigger.x, clickedTrigger.y).catch(() => { });
+        } else {
+            const labelLoc = page.locator('label, div, span, p').filter({ hasText: new RegExp(labelRegex, 'i') }).filter({ visible: true }).first();
+            if (await labelLoc.isVisible({ timeout: 1500 }).catch(() => false)) {
+                const box = await labelLoc.boundingBox();
+                if (box) {
+                    await page.mouse.click(box.x + box.width + 120, box.y + box.height / 2);
                 }
+            }
+        }
 
-                await page.evaluate(({ itm }) => {
-                    const search = itm.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const options = Array.from(document.querySelectorAll('li, div[role="option"], [class*="option" i], label, div, span'));
-                    for (const opt of options) {
-                        const t = (opt.innerText || opt.textContent || '').trim();
-                        const cleanT = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-                        if (cleanT === search || (cleanT.includes(search) && cleanT.length < 30)) {
-                            const chk = opt.querySelector('input[type="checkbox"]');
-                            if (chk && !chk.checked) {
-                                chk.click();
-                            } else {
-                                opt.click();
-                            }
-                            return true;
-                        }
-                    }
-                    return false;
-                }, { itm: val });
-                await page.waitForTimeout(250);
+        await page.waitForTimeout(500);
+
+        // 2. Select each value by searching and checking the option
+        for (const val of valList) {
+            const strVal = String(val).trim();
+            const searchInput = page.locator('input#checkmarkgroup-search, input[placeholder="Select"], input[aria-label="Search"], input[class*="SearchInput" i], input[placeholder*="search" i]')
+                .filter({ visible: true })
+                .last();
+
+            if (await searchInput.isVisible({ timeout: 800 }).catch(() => false)) {
+                await searchInput.click({ force: true });
+                await searchInput.fill('');
+                await page.keyboard.press('Control+A');
+                await page.keyboard.press('Backspace');
+                await searchInput.pressSequentially(strVal, { delay: 40 });
+                await page.waitForTimeout(300);
             }
 
-            await page.keyboard.press('Escape');
-            await page.waitForTimeout(300);
+            // Click the checkbox / option with STRICT EXACT MATCH first
+            const clickedOpt = await page.evaluate(({ itm }) => {
+                const target = itm.trim().toLowerCase();
+
+                const searchInputs = Array.from(document.querySelectorAll('input#checkmarkgroup-search, input[placeholder="Select"], input[aria-label="Search"], input[class*="SearchInput" i], input[placeholder*="search" i]'));
+                const visibleSearch = searchInputs.reverse().find(i => {
+                    const r = i.getBoundingClientRect();
+                    return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight;
+                });
+
+                let popupContainer = null;
+                if (visibleSearch) {
+                    let curr = visibleSearch.parentElement;
+                    while (curr && curr !== document.body) {
+                        const style = window.getComputedStyle(curr);
+                        const isPopup = /popover|popup|dropdown|menu|portal|modal|layer|floating|overlay|select/i.test(curr.className || '') ||
+                            style.position === 'absolute' || style.position === 'fixed' || parseInt(style.zIndex, 10) > 10;
+                        if (isPopup && curr.getBoundingClientRect().height > 80) {
+                            popupContainer = curr;
+                            break;
+                        }
+                        curr = curr.parentElement;
+                    }
+                    if (!popupContainer) popupContainer = visibleSearch.parentElement?.parentElement?.parentElement || document.body;
+                } else {
+                    popupContainer = document.body;
+                }
+
+                const allElements = Array.from(popupContainer.querySelectorAll('div, li, span, label, p, a, [role="option"], [role="checkbox"]'));
+
+                // STRICT EXACT MATCH
+                const exactMatches = [];
+                for (const el of allElements) {
+                    if (el === visibleSearch) continue;
+                    const r = el.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0 || r.top < 0 || r.bottom > window.innerHeight + 100) continue;
+
+                    const text = (el.innerText || el.textContent || '').trim();
+                    if (text.toLowerCase() === target) {
+                        exactMatches.push({ el, r, childCount: el.children.length, area: r.width * r.height });
+                    }
+                }
+
+                if (exactMatches.length > 0) {
+                    exactMatches.sort((a, b) => a.childCount - b.childCount || a.area - b.area);
+                    const opt = exactMatches[0].el;
+                    opt.scrollIntoView({ block: 'nearest' });
+                    const chk = opt.querySelector('input[type="checkbox"]');
+                    if (chk && !chk.checked) {
+                        chk.click();
+                    } else {
+                        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evt =>
+                            opt.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }))
+                        );
+                        opt.click();
+                    }
+                    const r = opt.getBoundingClientRect();
+                    return { success: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                }
+
+                return { success: false };
+            }, { itm: strVal });
+
+            if (clickedOpt && clickedOpt.success) {
+                await page.mouse.click(clickedOpt.x, clickedOpt.y).catch(() => { });
+            } else {
+                const escaped = strVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const optLoc = page.locator('div[role="radiogroup"] div, label, li, span, div').filter({ hasText: new RegExp(`^\\s*${escaped}\\s*$`, 'i') }).filter({ visible: true }).first();
+                if (await optLoc.isVisible({ timeout: 800 }).catch(() => false)) {
+                    await optLoc.click({ force: true }).catch(() => { });
+                }
+            }
+            await page.waitForTimeout(250);
         }
+
+        // 3. Click Apply button if present or close dropdown
+        const applyBtn = page.locator('button:has-text("Apply"), [role="button"]:has-text("Apply"), a:has-text("Apply")').filter({ visible: true }).first();
+        if (await applyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await applyBtn.click({ force: true });
+        } else {
+            await page.keyboard.press('Escape');
+        }
+        await page.waitForTimeout(300);
         return true;
     } catch (e) {
+        console.error(`Error in selectMultiSelectDropdown ${labelRegex}:`, e.message);
         return false;
     }
 }
@@ -1353,7 +1578,7 @@ function getAllMainSkus() {
     const mainFiles = allFiles.filter(f => {
         const name = path.parse(f).name.toLowerCase();
         return !name.endsWith('_a') && !name.endsWith('_b') && !name.endsWith('_c') && !name.endsWith('_d') &&
-               !name.includes('_a.') && !name.includes('_b.') && !name.includes('_c.') && !name.includes('_d.');
+            !name.includes('_a.') && !name.includes('_b.') && !name.includes('_c.') && !name.includes('_d.');
     });
 
     if (mainFiles.length === 0) {
@@ -1394,16 +1619,16 @@ function getImagesForCatalog(baseName = 'pd_1030') {
 
     // 2. Find _a, _b, _c, _d side/template images (first checks SKU-specific, then common pool)
     const imgA = allFiles.find(f => path.parse(f).name.toLowerCase() === `${sanitizedBase}_a`) ||
-                 allFiles.find(f => f.toLowerCase().includes('_a'));
+        allFiles.find(f => f.toLowerCase().includes('_a'));
 
     const imgB = allFiles.find(f => path.parse(f).name.toLowerCase() === `${sanitizedBase}_b`) ||
-                 allFiles.find(f => f.toLowerCase().includes('_b'));
+        allFiles.find(f => f.toLowerCase().includes('_b'));
 
     const imgC = allFiles.find(f => path.parse(f).name.toLowerCase() === `${sanitizedBase}_c`) ||
-                 allFiles.find(f => f.toLowerCase().includes('_c'));
+        allFiles.find(f => f.toLowerCase().includes('_c'));
 
     const imgD = allFiles.find(f => path.parse(f).name.toLowerCase() === `${sanitizedBase}_d`) ||
-                 allFiles.find(f => f.toLowerCase().includes('_d'));
+        allFiles.find(f => f.toLowerCase().includes('_d'));
 
     const ordered = [mainImg];
     if (imgA) ordered.push(imgA);
@@ -1637,11 +1862,11 @@ async function run() {
             updateStatus(username, 'Fatal Error: ' + err.message);
         } finally {
             try {
-                if (page) await page.close().catch(() => {});
+                if (page) await page.close().catch(() => { });
                 if (!isExisting && browser) {
-                    await browser.close().catch(() => {});
+                    await browser.close().catch(() => { });
                 }
-            } catch (e) {}
+            } catch (e) { }
             console.log(`[${username}] Browser task completed and closed.`);
         }
     }
